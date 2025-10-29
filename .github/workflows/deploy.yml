@@ -1,6 +1,5 @@
 name: Deploy Static Website to S3
 
-# This workflow runs on every push to the 'main' branch
 on:
   push:
     branches:
@@ -8,30 +7,28 @@ on:
 
 jobs:
   deploy:
-    # Use the latest version of Ubuntu to run the job
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Download your code from GitHub to the runner
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Set up Node.js (because you have a package.json)
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20" # Use a modern version for Vite
+          node-version: "20"
 
-      # 3. Install all your project's dependencies
       - name: Install dependencies
         run: npm install
 
-      # 4. Run the 'build' script from your package.json
-      # This creates the final static files in a '/dist' folder
+      # --- NEW STEP TO FIX PERMISSION DENIED ---
+      - name: Fix permissions
+        run: chmod +x node_modules/.bin/vite
+
+      # --- This step will now work ---
       - name: Build project
         run: npm run build
 
-      # 5. Configure the AWS access keys (from your GitHub Secrets)
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -39,7 +36,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
 
-      # 6. Sync the built files from the '/dist' folder to your S3 bucket
+      # This step is still needed
+      - name: Install AWS CLI
+        run: |
+          pip3 install awscli
+
       - name: Deploy to S3
         run: |
+          # We deploy the 'dist' folder, which is Vite's default build output
           aws s3 sync ./dist s3://mindvault-project --delete
